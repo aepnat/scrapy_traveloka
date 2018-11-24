@@ -1,179 +1,123 @@
+# -*- coding: utf-8 -*-
 import scrapy
 import time
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
-from traveloka.items import HotelReview
-from traveloka.items import TravelokaItem
+from selenium.common.exceptions import NoSuchElementException
 
 class TravelokaSpider(scrapy.Spider):
     name = 'traveloka'
     allowed_domains = ['traveloka.com']
-    start_urls = ['https://www.traveloka.com/id-id/hotel/search?spec=20-11-2018.21-11-2018.1.1.HOTEL_GEO.102813.Jakarta.2']
+    start_urls = ['traveloka.com']
+    chromedriver_path = 'app/chromedriver'
 
-    # def parse(self):
-    #     urls = [
-    #         'https://www.traveloka.com/id-id/hotel/search?spec=15-08-2018.16-08-2018.1.1.HOTEL_GEO.100154.Lampung%20Selatan.1'
-    #     ]
-    #     for url in urls:
-    #         yield scrapy.Request(url, self.parse_hotelList)
+    def __init__(self, chromedriver_path='', **kwargs):
+        super(TravelokaSpider, self).__init__(**kwargs)
+        if isinstance(self.start_urls, str):
+            self.start_urls = self.start_urls.split(',')
+        if (chromedriver_path != ''):
+            self.chromedriver_path = chromedriver_path
 
     def parse(self, response):
-        print('===================================== start get hotel list data ======================================') 
         options = Options()
         options.add_argument('--headless')
         options.add_argument('--lang=id')
         options.add_argument('--disable-gpu')
-        dv = webdriver.Chrome(chrome_options=options)
+        if (self.chromedriver_path == 'path'):
+            dv = webdriver.Chrome(chrome_options=options)
+        else:
+            dv = webdriver.Chrome(self.chromedriver_path, chrome_options=options)
+
         dv.get(response.url)
         wait = WebDriverWait(dv, 20)
         dv.implicitly_wait(7)
-        listURL = []
-        # items = []
-        counter = 0
+        counterPage = 0
+        counterHotel = 0
 
         wait.until(lambda dv: dv.find_elements_by_xpath("//div[@class='mMmI2 CZtP0 tvat-searchListItem']"))
         nextPage = True
         while nextPage:
-            #ngambil semua element hotel 1
+            # ngambil semua element hotel 1
             hotels = dv.find_elements_by_xpath("//div[@class='mMmI2 CZtP0 tvat-searchListItem']")
             try:
                 for hotel in hotels:
+                    try:
+                        hotelName = hotel.find_element_by_xpath(".//div[@class='_1z5je _10ZQX tvat-hotelName']").text
+                    except NoSuchElementException:
+                        hotelName = '-'
+
+                    try:
+                        hotelStar = hotel.find_element_by_xpath(".//meta[@itemprop='ratingValue']").get_attribute('content')
+                    except NoSuchElementException:
+                        hotelStar = 0
+
+                    try:
+                        hotelTipe = hotel.find_element_by_xpath(".//div[@class='_3ohst Jewfo _2Vswb']").text
+                    except NoSuchElementException:
+                        hotelTipe = '-'
+
                     hotel.click()
                     mainwindow = dv.window_handles[0] #tab bawaan browser
                     hotelwindow = dv.window_handles[1] #new tab
                     dv.switch_to_window(hotelwindow)
                     wait.until(lambda dv: dv.find_elements_by_xpath("//link[@rel='canonical']"))
-                    hotelLink = dv.find_element_by_xpath("//link[@rel='canonical']").get_attribute('href')
-                    print('===================================== hotel link ======================================') 
-                    print('No.',  counter)
-                    print(hotelLink)
-                    print('===================================== hotel link ======================================') 
-                    listURL.append(hotelLink)
+                    wait.until(lambda dv: dv.find_elements_by_xpath("//img[@class='y9Bbb']"))
+
+                    try:
+                        hotelFullAddress = dv.find_element_by_xpath("//span[@itemprop='streetAddress']").text
+                        # split string address with comma to get area and city
+                        hotelSplit = hotelFullAddress.split(', ')
+                        AddressExplode = list(reversed(hotelSplit))
+                        hotelArea = AddressExplode[4]
+                        hotelCity = AddressExplode[2]
+                    except NoSuchElementException:
+                        hotelFullAddress = '-'
+
+                    try:
+                        img_restaurant = 'https://s3-ap-southeast-1.amazonaws.com/traveloka/imageResource/2017/06/07/1496833794378-eb51eee62d46110b712e327108299ea6.png'
+                        facilities = dv.find_elements_by_xpath("//img[@class='y9Bbb']")
+                        for facility in facilities:
+                            img_facility = facility.get_attribute('src')
+                            if (img_restaurant == img_facility):
+                                has_restaurant = 'yes'
+                                break
+                    except NoSuchElementException:
+                        has_restaurant = 'no'
+                    
+                    try:
+                        hotelLink = dv.find_element_by_xpath("//link[@rel='canonical']").get_attribute('href')
+                        hotelLink = list(reversed(hotelLink.split('/')))
+                        hotelId = hotelLink[0]
+                    except NoSuchElementException:
+                        hotelId = 0
+
+                    item = {}
+                    item['id'] = hotelId
+                    item['name'] = hotelName
+                    item['start'] = hotelStar
+                    item['address'] = hotelFullAddress
+                    item['area'] = hotelArea
+                    item['city'] = hotelCity
+                    item['tipe'] = hotelTipe
+                    item['has_restaurant'] = has_restaurant
+                    item['has_meeting_room'] = 'no'
+                    yield item
+                    counterHotel += 1
+
                     dv.close()
                     dv.switch_to_window(mainwindow)
-                    counter += 1
-                    if counter == 5:
-                        break
 
+                counterPage += 1
                 nextButton = dv.find_element_by_xpath("//div[@id='next-button']")
                 dv.execute_script('arguments[0].click();', nextButton)
                 wait.until(lambda dv: dv.find_elements_by_xpath("//div[@class='mMmI2 CZtP0 tvat-searchListItem']"))
 
-                # for development
-                nextPage = False
             except Exception as e:
-                print(e)
+                print("Page ", counterPage)
+                print("Hotel ", counterHotel)
+                print("Error next button", e)
                 nextPage = False
-        print('============================== finish get data LIST HOTEL ==========================')
         dv.quit()
         del dv
         
-        # return items
-        for url in listURL:
-            yield scrapy.Request(url, self.parse_hotelPage)
-        del listURL
-    
-    def parse_hotelPage(self, response):
-        print(('========= start hotel page ============'))
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--lang=id')
-        options.add_argument('--disable-gpu')
-        page = webdriver.Chrome(chrome_options=options)
-        page.get(response.url)
-        wait = WebDriverWait(page, 20)
-        page.implicitly_wait(7)
-
-        hotelName = page.find_element_by_xpath("//h1[@itemprop='name']").text
-        hotelRatingElemen = page.find_elements_by_xpath("//div[@class='_3TWbq']")
-        if (len(hotelRatingElemen) > 0):
-            hotelRating = float(hotelRatingElemen[0].text.replace(',','.'))
-        else:
-            hotelRating = 0
-
-        hotelStarElemen = page.find_elements_by_xpath("//meta[@itemprop='ratingValue']")
-        if (len(hotelStarElemen) > 0):
-            hotelStar = float(hotelStarElemen[0].get_attribute('content'))
-        else:
-            hotelStar = 0
-        
-        hotelAddress = page.find_element_by_xpath("//span[@itemprop='streetAddress']").text
-
-        try:
-            wait.until(lambda page: page.find_elements_by_xpath("//div[@itemprop='review']"))
-            getReview = True
-        except:
-            getReview = False
-        
-        counter = 0
-        nextPage = True
-        while nextPage and getReview:
-            reviews = page.find_elements_by_xpath("//div[@itemprop='review']")
-            hotelReviews = []
-            for review in reviews:
-                counter += 1
-                reviewContent = review.text.split("\n")
-                dtContent = reviewContent[2].split(' - ')
-                hotelReview = HotelReview()
-                hotelReview['hotelName'] = hotelName
-                hotelReview['hotelStar'] = hotelStar
-                hotelReview['hotelAddress'] = hotelAddress
-                hotelReview['hotelRating'] = hotelRating
-                hotelReview['reviewRating'] = reviewContent[0]
-                hotelReview['reviewName'] = reviewContent[1]
-                hotelReview['reviewDate'] = self.getReviewDate(dtContent[0])
-                if (len(dtContent) > 1):
-                    hotelReview['reviewTheme'] = dtContent[1]
-                
-                hotelReview['reviewText'] = reviewContent[3]
-                hotelReviews.append(hotelReview)
-            
-            for hotelReview in hotelReviews:
-                yield hotelReview
-                
-            nextButtonElement = page.find_elements_by_xpath("//div[@id='next-button']")
-            if (len(nextButtonElement) > 0):
-                page.execute_script('arguments[0].click();', nextButtonElement[0])
-                page.implicitly_wait(5)
-                wait.until(lambda page: page.find_elements_by_xpath("//div[@itemprop='review']"))
-            else:
-                nextPage = False
-                del hotelReviews
-
-        print(('========= end hotel page ============'))
-        page.quit()
-        del page
-    
-    def getReviewDate(self, dt):
-        tanggal = dt.split(" ")
-
-        if(tanggal[1] == "Jan"):
-            bl = 1
-        elif(tanggal[1] == "Feb"):
-            bl = 2
-        elif(tanggal[1] == "Mar"):
-            bl = 3
-        elif(tanggal[1] == "Apr"):
-            bl = 4
-        elif(tanggal[1] == "May"):
-            bl = 5
-        elif(tanggal[1] == "Jun"):
-            bl = 6
-        elif(tanggal[1] == "Jul"):
-            bl = 7
-        elif(tanggal[1] == "Agu"):
-            bl = 8
-        elif(tanggal[1] == "Sep"):
-            bl = 9
-        elif(tanggal[1] == "Okt"):
-            bl = 10
-        elif(tanggal[1] == "Nov"):
-            bl = 11
-        elif(tanggal[1] == "Des"):
-            bl = 12
-        
-        tgl = tanggal[0] + " " + str(bl) + " " + tanggal[2]
-        # hasil = time.strptime(tgl, '%d %m %Y').strftime('%Y-%m-%dT%H:%M:%S%z')
-        hasil = tgl
-        return hasil

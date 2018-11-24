@@ -7,17 +7,6 @@
 
 import scrapy
 
-class HotelReview(scrapy.Item):
-    hotelName = scrapy.Field()
-    hotelStar = scrapy.Field()
-    hotelAddress = scrapy.Field()
-    hotelRating = scrapy.Field()
-    reviewRating = scrapy.Field()
-    reviewDate = scrapy.Field()
-    reviewName = scrapy.Field()
-    reviewTheme = scrapy.Field()
-    reviewText = scrapy.Field() 
-
 class Hotel(scrapy.Item):
     id = scrapy.Field()
     hotelName = scrapy.Field()

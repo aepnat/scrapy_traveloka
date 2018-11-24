@@ -15,9 +15,6 @@ SPIDER_MODULES = ['traveloka.spiders']
 NEWSPIDER_MODULE = 'traveloka.spiders'
 
 
-# Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'traveloka (+http://www.yourdomain.com)'
-
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 
@@ -35,12 +32,9 @@ CONCURRENT_REQUESTS_PER_IP = 16
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = False
 
-# Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
 DEFAULT_REQUEST_HEADERS = {
-#   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'id',
 }
 
@@ -66,7 +60,7 @@ DEFAULT_REQUEST_HEADERS = {
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    # 'traveloka.pipelines.TravelokaPipeline': 300,
-   'scrapyelasticsearch.scrapyelasticsearch.ElasticSearchPipeline': 500
+   # 'scrapyelasticsearch.scrapyelasticsearch.ElasticSearchPipeline': 500
 }
 
 # Enable and configure the AutoThrottle extension (dis`abled by default)
@@ -90,9 +84,9 @@ ITEM_PIPELINES = {
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-ELASTICSEARCH_SERVERS = ['http://localhost:9200']
-ELASTICSEARCH_INDEX = 'traveloka_hotel'
-ELASTICSEARCH_INDEX_DATE_FORMAT = '%Y-%m'
-ELASTICSEARCH_TYPE = 'items'
-ELASTICSEARCH_BUFFER_LENGTH = 20
-ELASTICSEARCH_UNIQ_KEY = 'id'
+# ELASTICSEARCH_SERVERS = ['http://localhost:9200']
+# ELASTICSEARCH_INDEX = 'traveloka'
+# ELASTICSEARCH_INDEX_DATE_FORMAT = '%Y-%m'
+# ELASTICSEARCH_TYPE = 'hotel'
+# ELASTICSEARCH_BUFFER_LENGTH = 20
+# ELASTICSEARCH_UNIQ_KEY = 'id'
